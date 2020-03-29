@@ -9,7 +9,7 @@ import (
 	"github.com/goreleaser/goreleaser/pkg/context"
 )
 
-// Pipe for Artifactory
+// Pipe for Blob
 type Pipe struct{}
 
 // String returns the description of the pipe
