@@ -68,6 +68,7 @@ func assetOpenDefault(kind string, a *artifact.Artifact) (*asset, error) {
 
 // #todo doku + error wird nicht gebraucht
 type TargetURLResolver func(ctx *context.Context, config *Config, artifact *artifact.Artifact) string
+type HeaderGenerator func(artifact *artifact.Artifact) (map[string]string, error)
 
 type Config struct {
 	Name              string
@@ -75,11 +76,11 @@ type Config struct {
 	Username          string
 	Mode              string
 	Method            string
-	ChecksumHeader    string
 	TrustedCerts      string
 	Checksum          bool
 	Signature         bool
 	TargetURLResolver TargetURLResolver
+	Header            HeaderGenerator
 }
 
 // CheckConfig validates an upload configuration returning a descriptive error when appropriate
@@ -238,16 +239,16 @@ func uploadAsset(ctx *context.Context, config *Config, artifact *artifact.Artifa
 	}
 	defer asset.ReadCloser.Close() // nolint: errcheck
 
-	var headers = map[string]string{}
-	if config.ChecksumHeader != "" {
-		sum, err := artifact.Checksum("sha256")
+	// Get additional header
+	header := map[string]string{}
+	if config.Header != nil {
+		header, err = config.Header(artifact)
 		if err != nil {
 			return err
 		}
-		headers[config.ChecksumHeader] = sum
 	}
 
-	res, err := uploadAssetToServer(ctx, config, targetURL, username, secret, headers, asset, check)
+	res, err := uploadAssetToServer(ctx, config, targetURL, username, secret, header, asset, check)
 	if err != nil {
 		msg := fmt.Sprintf("%s: upload failed", kind)
 		log.WithError(err).WithFields(log.Fields{
@@ -279,7 +280,7 @@ func uploadAssetToServer(ctx *context.Context, config *Config, target, username,
 }
 
 // newUploadRequest creates a new h.Request for uploading
-func newUploadRequest(method, target, username, secret string, headers map[string]string, a *asset) (*h.Request, error) {
+func newUploadRequest(method, target, username, secret string, header map[string]string, a *asset) (*h.Request, error) {
 	req, err := h.NewRequest(method, target, a.ReadCloser)
 	if err != nil {
 		return nil, err
@@ -287,7 +288,7 @@ func newUploadRequest(method, target, username, secret string, headers map[strin
 	req.ContentLength = a.Size
 	req.SetBasicAuth(username, secret)
 
-	for k, v := range headers {
+	for k, v := range header {
 		req.Header.Add(k, v)
 	}
 
@@ -323,7 +324,7 @@ func executeHTTPRequest(ctx *context.Context, config *Config, req *h.Request, ch
 	if err != nil {
 		return nil, err
 	}
-	log.Debugf("executing request: %s %s (headers: %v)", req.Method, req.URL, req.Header)
+	log.Debugf("executing request: %s %s (header: %v)", req.Method, req.URL, req.Header)
 	resp, err := client.Do(req)
 	if err != nil {
 		// If we got an error, and the context has been canceled,

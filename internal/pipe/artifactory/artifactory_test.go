@@ -71,6 +71,8 @@ func TestRunPipe_ModeBinary(t *testing.T) {
 		testHeader(t, r, "Content-Length", "9")
 		// Basic auth of user "deployuser" with secret "deployuser-secret"
 		testHeader(t, r, "Authorization", "Basic ZGVwbG95dXNlcjpkZXBsb3l1c2VyLXNlY3JldA==")
+		testHeader(t, r, "X-Checksum-Sha1", "a465b6fe36f51a8c521de658820ce161b8d208fa")
+		testHeader(t, r, "X-Checksum-Sha256", "43d250d92b5dbb47f75208de8e9a9a321d23e85eed0dc3d5dfa83bc3cc5aa68c")
 
 		w.WriteHeader(http.StatusCreated)
 		fmt.Fprint(w, `{
@@ -82,12 +84,13 @@ func TestRunPipe_ModeBinary(t *testing.T) {
 			"mimeType" : "application/octet-stream",
 			"size" : "9",
 			"checksums" : {
-			  "sha1" : "65d01857a69f14ade727fe1ceee0f52a264b6e57",
+			  "sha1" : "a465b6fe36f51a8c521de658820ce161b8d208fa",
 			  "md5" : "a55e303e7327dc871a8e2a84f30b9983",
-			  "sha256" : "ead9b172aec5c24ca6c12e85a1e6fc48dd341d8fac38c5ba00a78881eabccf0e"
+			  "sha256" : "43d250d92b5dbb47f75208de8e9a9a321d23e85eed0dc3d5dfa83bc3cc5aa68c"
 			},
 			"originalChecksums" : {
-			  "sha256" : "ead9b172aec5c24ca6c12e85a1e6fc48dd341d8fac38c5ba00a78881eabccf0e"
+			  "sha1" : "a465b6fe36f51a8c521de658820ce161b8d208fa",
+			  "sha256" : "43d250d92b5dbb47f75208de8e9a9a321d23e85eed0dc3d5dfa83bc3cc5aa68c"
 			},
 			"uri" : "http://127.0.0.1:56563/example-repo-local/mybin/darwin/amd64/mybin"
 		  }`)
@@ -97,6 +100,8 @@ func TestRunPipe_ModeBinary(t *testing.T) {
 		testHeader(t, r, "Content-Length", "9")
 		// Basic auth of user "deployuser" with secret "deployuser-secret"
 		testHeader(t, r, "Authorization", "Basic ZGVwbG95dXNlcjpkZXBsb3l1c2VyLXNlY3JldA==")
+		testHeader(t, r, "X-Checksum-Sha1", "a465b6fe36f51a8c521de658820ce161b8d208fa")
+		testHeader(t, r, "X-Checksum-Sha256", "43d250d92b5dbb47f75208de8e9a9a321d23e85eed0dc3d5dfa83bc3cc5aa68c")
 
 		w.WriteHeader(http.StatusCreated)
 		fmt.Fprint(w, `{
@@ -108,12 +113,13 @@ func TestRunPipe_ModeBinary(t *testing.T) {
 			"mimeType" : "application/octet-stream",
 			"size" : "9",
 			"checksums" : {
-			  "sha1" : "65d01857a69f14ade727fe1ceee0f52a264b6e57",
+			  "sha1" : "a465b6fe36f51a8c521de658820ce161b8d208fa",
 			  "md5" : "a55e303e7327dc871a8e2a84f30b9983",
-			  "sha256" : "ead9b172aec5c24ca6c12e85a1e6fc48dd341d8fac38c5ba00a78881eabccf0e"
+			  "sha256" : "43d250d92b5dbb47f75208de8e9a9a321d23e85eed0dc3d5dfa83bc3cc5aa68c"
 			},
 			"originalChecksums" : {
-			  "sha256" : "ead9b172aec5c24ca6c12e85a1e6fc48dd341d8fac38c5ba00a78881eabccf0e"
+			  "sha1" : "a465b6fe36f51a8c521de658820ce161b8d208fa",
+			  "sha256" : "43d250d92b5dbb47f75208de8e9a9a321d23e85eed0dc3d5dfa83bc3cc5aa68c"
 			},
 			"uri" : "http://127.0.0.1:56563/example-repo-local/mybin/linux/amd64/mybin"
 		  }`)
@@ -123,6 +129,8 @@ func TestRunPipe_ModeBinary(t *testing.T) {
 		testHeader(t, r, "Content-Length", "9")
 		// Basic auth of user "productionuser" with secret "productionuser-apikey"
 		testHeader(t, r, "Authorization", "Basic cHJvZHVjdGlvbnVzZXI6cHJvZHVjdGlvbnVzZXItYXBpa2V5")
+		testHeader(t, r, "X-Checksum-Sha1", "a465b6fe36f51a8c521de658820ce161b8d208fa")
+		testHeader(t, r, "X-Checksum-Sha256", "43d250d92b5dbb47f75208de8e9a9a321d23e85eed0dc3d5dfa83bc3cc5aa68c")
 
 		w.WriteHeader(http.StatusCreated)
 		fmt.Fprint(w, `{
@@ -134,12 +142,13 @@ func TestRunPipe_ModeBinary(t *testing.T) {
 			"mimeType" : "application/octet-stream",
 			"size" : "9",
 			"checksums" : {
-			  "sha1" : "65d01857a69f14ade727fe1ceee0f52a264b6e57",
+			  "sha1" : "a465b6fe36f51a8c521de658820ce161b8d208fa",
 			  "md5" : "a55e303e7327dc871a8e2a84f30b9983",
-			  "sha256" : "ead9b172aec5c24ca6c12e85a1e6fc48dd341d8fac38c5ba00a78881eabccf0e"
+			  "sha256" : "43d250d92b5dbb47f75208de8e9a9a321d23e85eed0dc3d5dfa83bc3cc5aa68c"
 			},
 			"originalChecksums" : {
-			  "sha256" : "ead9b172aec5c24ca6c12e85a1e6fc48dd341d8fac38c5ba00a78881eabccf0e"
+			  "sha1" : "a465b6fe36f51a8c521de658820ce161b8d208fa",
+			  "sha256" : "43d250d92b5dbb47f75208de8e9a9a321d23e85eed0dc3d5dfa83bc3cc5aa68c"
 			},
 			"uri" : "http://127.0.0.1:56563/production-repo-remote/mybin/darwin/amd64/mybin"
 		  }`)
@@ -149,6 +158,8 @@ func TestRunPipe_ModeBinary(t *testing.T) {
 		testHeader(t, r, "Content-Length", "9")
 		// Basic auth of user "productionuser" with secret "productionuser-apikey"
 		testHeader(t, r, "Authorization", "Basic cHJvZHVjdGlvbnVzZXI6cHJvZHVjdGlvbnVzZXItYXBpa2V5")
+		testHeader(t, r, "X-Checksum-Sha1", "a465b6fe36f51a8c521de658820ce161b8d208fa")
+		testHeader(t, r, "X-Checksum-Sha256", "43d250d92b5dbb47f75208de8e9a9a321d23e85eed0dc3d5dfa83bc3cc5aa68c")
 
 		w.WriteHeader(http.StatusCreated)
 		fmt.Fprint(w, `{
@@ -160,11 +171,12 @@ func TestRunPipe_ModeBinary(t *testing.T) {
 			"mimeType" : "application/octet-stream",
 			"size" : "9",
 			"checksums" : {
-			  "sha1" : "65d01857a69f14ade727fe1ceee0f52a264b6e57",
+			  "sha1" : "a465b6fe36f51a8c521de658820ce161b8d208fa",
 			  "md5" : "a55e303e7327dc871a8e2a84f30b9983",
-			  "sha256" : "ead9b172aec5c24ca6c12e85a1e6fc48dd341d8fac38c5ba00a78881eabccf0e"
+			  "sha256" : "43d250d92b5dbb47f75208de8e9a9a321d23e85eed0dc3d5dfa83bc3cc5aa68c"
 			},
 			"originalChecksums" : {
+			  "sha1" : "a465b6fe36f51a8c521de658820ce161b8d208fa",
 			  "sha256" : "ead9b172aec5c24ca6c12e85a1e6fc48dd341d8fac38c5ba00a78881eabccf0e"
 			},
 			"uri" : "http://127.0.0.1:56563/production-repo-remote/mybin/linux/amd64/mybin"
@@ -258,6 +270,8 @@ func TestRunPipe_ModeArchive(t *testing.T) {
 		testMethod(t, r, http.MethodPut)
 		// Basic auth of user "deployuser" with secret "deployuser-secret"
 		testHeader(t, r, "Authorization", "Basic ZGVwbG95dXNlcjpkZXBsb3l1c2VyLXNlY3JldA==")
+		testHeader(t, r, "X-Checksum-Sha1", "da39a3ee5e6b4b0d3255bfef95601890afd80709")
+		testHeader(t, r, "X-Checksum-Sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 
 		w.WriteHeader(http.StatusCreated)
 		fmt.Fprint(w, `{
@@ -269,12 +283,13 @@ func TestRunPipe_ModeArchive(t *testing.T) {
 			"mimeType" : "application/octet-stream",
 			"size" : "9",
 			"checksums" : {
-			  "sha1" : "65d01857a69f14ade727fe1ceee0f52a264b6e57",
+			  "sha1" : "da39a3ee5e6b4b0d3255bfef95601890afd80709",
 			  "md5" : "a55e303e7327dc871a8e2a84f30b9983",
-			  "sha256" : "ead9b172aec5c24ca6c12e85a1e6fc48dd341d8fac38c5ba00a78881eabccf0e"
+			  "sha256" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 			},
 			"originalChecksums" : {
-			  "sha256" : "ead9b172aec5c24ca6c12e85a1e6fc48dd341d8fac38c5ba00a78881eabccf0e"
+			  "sha1" : "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+			  "sha256" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 			},
 			"uri" : "http://127.0.0.1:56563/example-repo-local/goreleaser/bin.tar.gz"
 		  }`)
@@ -284,6 +299,8 @@ func TestRunPipe_ModeArchive(t *testing.T) {
 		testMethod(t, r, http.MethodPut)
 		// Basic auth of user "deployuser" with secret "deployuser-secret"
 		testHeader(t, r, "Authorization", "Basic ZGVwbG95dXNlcjpkZXBsb3l1c2VyLXNlY3JldA==")
+		testHeader(t, r, "X-Checksum-Sha1", "da39a3ee5e6b4b0d3255bfef95601890afd80709")
+		testHeader(t, r, "X-Checksum-Sha256", "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
 
 		w.WriteHeader(http.StatusCreated)
 		fmt.Fprint(w, `{
@@ -295,12 +312,13 @@ func TestRunPipe_ModeArchive(t *testing.T) {
 			"mimeType" : "application/octet-stream",
 			"size" : "9",
 			"checksums" : {
-			  "sha1" : "65d01857a69f14ade727fe1ceee0f52a264b6e57",
+			  "sha1" : "da39a3ee5e6b4b0d3255bfef95601890afd80709",
 			  "md5" : "a55e303e7327dc871a8e2a84f30b9983",
-			  "sha256" : "ead9b172aec5c24ca6c12e85a1e6fc48dd341d8fac38c5ba00a78881eabccf0e"
+			  "sha256" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 			},
 			"originalChecksums" : {
-			  "sha256" : "ead9b172aec5c24ca6c12e85a1e6fc48dd341d8fac38c5ba00a78881eabccf0e"
+			  "sha1" : "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+			  "sha256" : "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 			},
 			"uri" : "http://127.0.0.1:56563/example-repo-local/goreleaser/bin.deb"
 		  }`)
@@ -406,6 +424,8 @@ func TestRunPipe_BadCredentials(t *testing.T) {
 		testHeader(t, r, "Content-Length", "9")
 		// Basic auth of user "deployuser" with secret "deployuser-secret"
 		testHeader(t, r, "Authorization", "Basic ZGVwbG95dXNlcjpkZXBsb3l1c2VyLXNlY3JldA==")
+		testHeader(t, r, "X-Checksum-Sha1", "a465b6fe36f51a8c521de658820ce161b8d208fa")
+		testHeader(t, r, "X-Checksum-Sha256", "43d250d92b5dbb47f75208de8e9a9a321d23e85eed0dc3d5dfa83bc3cc5aa68c")
 
 		w.WriteHeader(http.StatusUnauthorized)
 		fmt.Fprint(w, `{
@@ -468,6 +488,8 @@ func TestRunPipe_UnparsableErrorResponse(t *testing.T) {
 		testHeader(t, r, "Content-Length", "9")
 		// Basic auth of user "deployuser" with secret "deployuser-secret"
 		testHeader(t, r, "Authorization", "Basic ZGVwbG95dXNlcjpkZXBsb3l1c2VyLXNlY3JldA==")
+		testHeader(t, r, "X-Checksum-Sha1", "a465b6fe36f51a8c521de658820ce161b8d208fa")
+		testHeader(t, r, "X-Checksum-Sha256", "43d250d92b5dbb47f75208de8e9a9a321d23e85eed0dc3d5dfa83bc3cc5aa68c")
 
 		w.WriteHeader(http.StatusUnauthorized)
 		fmt.Fprint(w, `...{
@@ -527,6 +549,8 @@ func TestRunPipe_UnparsableResponse(t *testing.T) {
 		testHeader(t, r, "Content-Length", "9")
 		// Basic auth of user "deployuser" with secret "deployuser-secret"
 		testHeader(t, r, "Authorization", "Basic ZGVwbG95dXNlcjpkZXBsb3l1c2VyLXNlY3JldA==")
+		testHeader(t, r, "X-Checksum-Sha1", "a465b6fe36f51a8c521de658820ce161b8d208fa")
+		testHeader(t, r, "X-Checksum-Sha256", "43d250d92b5dbb47f75208de8e9a9a321d23e85eed0dc3d5dfa83bc3cc5aa68c")
 
 		w.WriteHeader(http.StatusCreated)
 		fmt.Fprint(w, `invalid-json{
@@ -839,5 +863,4 @@ func TestDefaultSet(t *testing.T) {
 	assert.Len(t, ctx.Config.Artifactories, 1)
 	var artifactory = ctx.Config.Artifactories[0]
 	assert.Equal(t, "custom", artifactory.Mode)
-	//assert.Equal(t, "X-Checksum-SHA256", artifactory.ChecksumHeader)
 }

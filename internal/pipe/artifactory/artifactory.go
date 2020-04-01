@@ -74,6 +74,34 @@ func targetURLResolver(instance *config.Artifactory) http.TargetURLResolver {
 	}
 }
 
+func header() http.HeaderGenerator {
+	return func(artifact *artifact.Artifact) (map[string]string, error) {
+		var headers = map[string]string{}
+
+		// #todo should we always upload all  or control it with a artifactory.uploadAllChecksums flag ?
+		sha1, err := artifact.Checksum("sha1")
+		if err != nil {
+			return nil, err
+		}
+		headers["X-Checksum-sha1"] = sha1
+
+		sha256, err := artifact.Checksum("sha256")
+		if err != nil {
+			return nil, err
+		}
+		headers["X-Checksum-Sha256"] = sha256
+
+		// #todo testen ob artifactory auch mit 2 checksummen glücklich ist
+		// md5, err := artifact.Checksum("md5")
+		// if err != nil {
+		// 	return nil, err
+		// }
+		// headers["X-Checksum-MD5"] = md5
+
+		return headers, nil
+	}
+}
+
 // Publish artifacts to artifactory
 //
 // Docs: https://www.jfrog.com/confluence/display/RTF/Artifactory+REST+API#ArtifactoryRESTAPI-Example-DeployinganArtifact
@@ -99,8 +127,8 @@ func (Pipe) Publish(ctx *context.Context) error {
 			TrustedCerts:      instance.TrustedCerts,
 			Checksum:          instance.Checksum,
 			Signature:         instance.Signature,
-			ChecksumHeader:    "", // #todo
 			TargetURLResolver: targetURLResolver(&instance),
+			Header:            header(),
 		})
 	}
 

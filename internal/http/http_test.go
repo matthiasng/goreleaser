@@ -453,15 +453,17 @@ func TestUpload(t *testing.T) {
 			},
 			checks(),
 		},
-		{"checksumheader", true, true, false, false,
+		{"header", true, true, false, false,
 			func(s *httptest.Server) (*context.Context, Config) {
 				return ctx, Config{
 					Mode:              ModeBinary,
 					Name:              "a",
 					TargetURLResolver: url(s.URL + "/{{.ProjectName}}/{{.Version}}/"),
 					Username:          "u2",
-					ChecksumHeader:    "-x-sha256",
-					TrustedCerts:      cert(s),
+					Header: func(_ *artifact.Artifact) (map[string]string, error) {
+						return map[string]string{"-x-sha256": "5e2bf57d3f40c4b6df69daf1936cb766f832374b4fc0259a7cbff06e2f70f269"}, nil
+					},
+					TrustedCerts: cert(s),
 				}
 			},
 			checks(check{"/blah/2.1.0/a.ubi", "u2", "x", content, map[string]string{"-x-sha256": "5e2bf57d3f40c4b6df69daf1936cb766f832374b4fc0259a7cbff06e2f70f269"}}),

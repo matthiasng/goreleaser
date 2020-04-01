@@ -59,6 +59,21 @@ func targetURLResolver(upload *config.Upload) http.TargetURLResolver {
 	}
 }
 
+func header(upload *config.Upload) http.HeaderGenerator {
+	return func(artifact *artifact.Artifact) (map[string]string, error) {
+		var headers = map[string]string{}
+		if upload.ChecksumHeader != "" {
+			sum, err := artifact.Checksum("sha256")
+			if err != nil {
+				return nil, err
+			}
+			headers[upload.ChecksumHeader] = sum
+		}
+
+		return headers, nil
+	}
+}
+
 // #todo Gibt es jetzt 3 mal, in Artifactory, Upload und Http
 func misconfigured(upload *config.Upload, reason string) error {
 	return pipe.Skip(fmt.Sprintf("upload section '%s' is not configured properly (%s)", upload.Name, reason))
@@ -84,11 +99,11 @@ func (Pipe) Publish(ctx *context.Context) error {
 			Username:          upload.Username,
 			Mode:              upload.Mode,
 			Method:            upload.Method,
-			ChecksumHeader:    upload.ChecksumHeader,
 			TrustedCerts:      upload.TrustedCerts,
 			Checksum:          upload.Checksum,
 			Signature:         upload.Signature,
 			TargetURLResolver: targetURLResolver(&upload),
+			Header:            header(&upload),
 		})
 	}
 

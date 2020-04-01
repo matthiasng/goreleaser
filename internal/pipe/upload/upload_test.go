@@ -18,6 +18,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// #todo Test für ChecksumHeader. Hat es vorher nicht gegeben
+
 var (
 	// mux is the HTTP request multiplexer used with the test server.
 	mux *http.ServeMux
