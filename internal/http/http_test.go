@@ -69,13 +69,12 @@ func TestCheckConfig(t *testing.T) {
 		args    args
 		wantErr bool
 	}{
-		{"ok", args{ctx, &Config{Name: "a", Target: "http://blabla", Username: "pepe", Mode: ModeArchive}, "test"}, false},
-		{"secret missing", args{ctx, &Config{Name: "b", Target: "http://blabla", Username: "pepe", Mode: ModeArchive}, "test"}, true},
-		{"target missing", args{ctx, &Config{Name: "a", Username: "pepe", Mode: ModeArchive}, "test"}, true},
-		{"name missing", args{ctx, &Config{Target: "http://blabla", Username: "pepe", Mode: ModeArchive}, "test"}, true},
-		{"mode missing", args{ctx, &Config{Name: "a", Target: "http://blabla", Username: "pepe"}, "test"}, true},
-		{"mode invalid", args{ctx, &Config{Name: "a", Target: "http://blabla", Username: "pepe", Mode: "blabla"}, "test"}, true},
-		{"cert invalid", args{ctx, &Config{Name: "a", Target: "http://blabla", Username: "pepe", Mode: ModeBinary, TrustedCerts: "bad cert!"}, "test"}, true},
+		{"ok", args{ctx, &Config{Name: "a", Username: "pepe", Mode: ModeArchive}, "test"}, false},
+		{"secret missing", args{ctx, &Config{Name: "b", Username: "pepe", Mode: ModeArchive}, "test"}, true},
+		{"name missing", args{ctx, &Config{Username: "pepe", Mode: ModeArchive}, "test"}, true},
+		{"mode missing", args{ctx, &Config{Name: "a", Username: "pepe"}, "test"}, true},
+		{"mode invalid", args{ctx, &Config{Name: "a", Username: "pepe", Mode: "blabla"}, "test"}, true},
+		{"cert invalid", args{ctx, &Config{Name: "a", Username: "pepe", Mode: ModeBinary, TrustedCerts: "bad cert!"}, "test"}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -157,6 +156,12 @@ func cert(srv *httptest.Server) string {
 		Bytes: srv.Certificate().Raw,
 	}
 	return string(pem.EncodeToMemory(block))
+}
+
+func url(url string) TargetURLResolver {
+	return func(ctx *context.Context, config *Config, artifact *artifact.Artifact) string {
+		return url + artifact.Name
+	}
 }
 
 func TestUpload(t *testing.T) {
@@ -245,11 +250,11 @@ func TestUpload(t *testing.T) {
 		{"wrong-mode", true, true, true, true,
 			func(s *httptest.Server) (*context.Context, Config) {
 				return ctx, Config{
-					Mode:         "wrong-mode",
-					Name:         "a",
-					Target:       s.URL + "/{{.ProjectName}}/{{.Version}}/",
-					Username:     "u1",
-					TrustedCerts: cert(s),
+					Mode:              "wrong-mode",
+					Name:              "a",
+					TargetURLResolver: url(s.URL + "/{{.ProjectName}}/{{.Version}}/"),
+					Username:          "u1",
+					TrustedCerts:      cert(s),
 				}
 			},
 			checks(),
@@ -257,10 +262,10 @@ func TestUpload(t *testing.T) {
 		{"username-from-env", true, true, false, false,
 			func(s *httptest.Server) (*context.Context, Config) {
 				return ctx, Config{
-					Mode:         ModeArchive,
-					Name:         "a",
-					Target:       s.URL + "/{{.ProjectName}}/{{.Version}}/",
-					TrustedCerts: cert(s),
+					Mode:              ModeArchive,
+					Name:              "a",
+					TargetURLResolver: url(s.URL + "/{{.ProjectName}}/{{.Version}}/"),
+					TrustedCerts:      cert(s),
 				}
 			},
 			checks(
@@ -271,12 +276,12 @@ func TestUpload(t *testing.T) {
 		{"post", true, true, false, false,
 			func(s *httptest.Server) (*context.Context, Config) {
 				return ctx, Config{
-					Method:       h.MethodPost,
-					Mode:         ModeArchive,
-					Name:         "a",
-					Target:       s.URL + "/{{.ProjectName}}/{{.Version}}/",
-					Username:     "u1",
-					TrustedCerts: cert(s),
+					Method:            h.MethodPost,
+					Mode:              ModeArchive,
+					Name:              "a",
+					TargetURLResolver: url(s.URL + "/{{.ProjectName}}/{{.Version}}/"),
+					Username:          "u1",
+					TrustedCerts:      cert(s),
 				}
 			},
 			checks(
@@ -287,11 +292,11 @@ func TestUpload(t *testing.T) {
 		{"archive", true, true, false, false,
 			func(s *httptest.Server) (*context.Context, Config) {
 				return ctx, Config{
-					Mode:         ModeArchive,
-					Name:         "a",
-					Target:       s.URL + "/{{.ProjectName}}/{{.Version}}/",
-					Username:     "u1",
-					TrustedCerts: cert(s),
+					Mode:              ModeArchive,
+					Name:              "a",
+					TargetURLResolver: url(s.URL + "/{{.ProjectName}}/{{.Version}}/"),
+					Username:          "u1",
+					TrustedCerts:      cert(s),
 				}
 			},
 			checks(
@@ -302,11 +307,11 @@ func TestUpload(t *testing.T) {
 		{"archive_with_os_tmpl", true, true, false, false,
 			func(s *httptest.Server) (*context.Context, Config) {
 				return ctx, Config{
-					Mode:         ModeArchive,
-					Name:         "a",
-					Target:       s.URL + "/{{.ProjectName}}/{{.Version}}/{{.Os}}/{{.Arch}}",
-					Username:     "u1",
-					TrustedCerts: cert(s),
+					Mode:              ModeArchive,
+					Name:              "a",
+					TargetURLResolver: url(s.URL + "/{{.ProjectName}}/{{.Version}}/{{.Os}}/{{.Arch}}/"),
+					Username:          "u1",
+					TrustedCerts:      cert(s),
 				}
 			},
 			checks(
@@ -317,12 +322,12 @@ func TestUpload(t *testing.T) {
 		{"archive_with_ids", true, true, false, false,
 			func(s *httptest.Server) (*context.Context, Config) {
 				return ctx, Config{
-					Mode:         ModeArchive,
-					Name:         "a",
-					Target:       s.URL + "/{{.ProjectName}}/{{.Version}}/",
-					Username:     "u1",
-					TrustedCerts: cert(s),
-					IDs:          []string{"foo"},
+					Mode:              ModeArchive,
+					Name:              "a",
+					TargetURLResolver: url(s.URL + "/{{.ProjectName}}/{{.Version}}/"),
+					Username:          "u1",
+					TrustedCerts:      cert(s),
+					IDs:               []string{"foo"},
 				}
 			},
 			checks(
@@ -333,11 +338,11 @@ func TestUpload(t *testing.T) {
 		{"binary", true, true, false, false,
 			func(s *httptest.Server) (*context.Context, Config) {
 				return ctx, Config{
-					Mode:         ModeBinary,
-					Name:         "a",
-					Target:       s.URL + "/{{.ProjectName}}/{{.Version}}/",
-					Username:     "u2",
-					TrustedCerts: cert(s),
+					Mode:              ModeBinary,
+					Name:              "a",
+					TargetURLResolver: url(s.URL + "/{{.ProjectName}}/{{.Version}}/"),
+					Username:          "u2",
+					TrustedCerts:      cert(s),
 				}
 			},
 			checks(check{"/blah/2.1.0/a.ubi", "u2", "x", content, map[string]string{}}),
@@ -345,11 +350,11 @@ func TestUpload(t *testing.T) {
 		{"binary_with_os_tmpl", true, true, false, false,
 			func(s *httptest.Server) (*context.Context, Config) {
 				return ctx, Config{
-					Mode:         ModeBinary,
-					Name:         "a",
-					Target:       s.URL + "/{{.ProjectName}}/{{.Version}}/{{.Os}}/{{.Arch}}",
-					Username:     "u2",
-					TrustedCerts: cert(s),
+					Mode:              ModeBinary,
+					Name:              "a",
+					TargetURLResolver: url(s.URL + "/{{.ProjectName}}/{{.Version}}/{{.Os}}/{{.Arch}}/"),
+					Username:          "u2",
+					TrustedCerts:      cert(s),
 				}
 			},
 			checks(check{"/blah/2.1.0/Linux/amd64/a.ubi", "u2", "x", content, map[string]string{}}),
@@ -357,12 +362,12 @@ func TestUpload(t *testing.T) {
 		{"binary_with_ids", true, true, false, false,
 			func(s *httptest.Server) (*context.Context, Config) {
 				return ctx, Config{
-					Mode:         ModeBinary,
-					Name:         "a",
-					Target:       s.URL + "/{{.ProjectName}}/{{.Version}}/",
-					Username:     "u2",
-					TrustedCerts: cert(s),
-					IDs:          []string{"foo"},
+					Mode:              ModeBinary,
+					Name:              "a",
+					TargetURLResolver: url(s.URL + "/{{.ProjectName}}/{{.Version}}/"),
+					Username:          "u2",
+					TrustedCerts:      cert(s),
+					IDs:               []string{"foo"},
 				}
 			},
 			checks(check{"/blah/2.1.0/a.ubi", "u2", "x", content, map[string]string{}}),
@@ -370,11 +375,11 @@ func TestUpload(t *testing.T) {
 		{"binary-add-ending-bar", true, true, false, false,
 			func(s *httptest.Server) (*context.Context, Config) {
 				return ctx, Config{
-					Mode:         ModeBinary,
-					Name:         "a",
-					Target:       s.URL + "/{{.ProjectName}}/{{.Version}}",
-					Username:     "u2",
-					TrustedCerts: cert(s),
+					Mode:              ModeBinary,
+					Name:              "a",
+					TargetURLResolver: url(s.URL + "/{{.ProjectName}}/{{.Version}}/"),
+					Username:          "u2",
+					TrustedCerts:      cert(s),
 				}
 			},
 			checks(check{"/blah/2.1.0/a.ubi", "u2", "x", content, map[string]string{}}),
@@ -382,13 +387,13 @@ func TestUpload(t *testing.T) {
 		{"archive-with-checksum-and-signature", true, true, false, false,
 			func(s *httptest.Server) (*context.Context, Config) {
 				return ctx, Config{
-					Mode:         ModeArchive,
-					Name:         "a",
-					Target:       s.URL + "/{{.ProjectName}}/{{.Version}}/",
-					Username:     "u3",
-					Checksum:     true,
-					Signature:    true,
-					TrustedCerts: cert(s),
+					Mode:              ModeArchive,
+					Name:              "a",
+					TargetURLResolver: url(s.URL + "/{{.ProjectName}}/{{.Version}}/"),
+					Username:          "u3",
+					Checksum:          true,
+					Signature:         true,
+					TrustedCerts:      cert(s),
 				}
 			},
 			checks(
@@ -401,13 +406,13 @@ func TestUpload(t *testing.T) {
 		{"bad-template", true, true, true, true,
 			func(s *httptest.Server) (*context.Context, Config) {
 				return ctx, Config{
-					Mode:         ModeBinary,
-					Name:         "a",
-					Target:       s.URL + "/{{.ProjectNameXXX}}/{{.VersionXXX}}/",
-					Username:     "u3",
-					Checksum:     true,
-					Signature:    true,
-					TrustedCerts: cert(s),
+					Mode:              ModeBinary,
+					Name:              "a",
+					TargetURLResolver: url(s.URL + "/{{.ProjectNameXXX}}/{{.VersionXXX}}/"),
+					Username:          "u3",
+					Checksum:          true,
+					Signature:         true,
+					TrustedCerts:      cert(s),
 				}
 			},
 			checks(),
@@ -415,13 +420,13 @@ func TestUpload(t *testing.T) {
 		{"failed-request", true, true, true, true,
 			func(s *httptest.Server) (*context.Context, Config) {
 				return ctx, Config{
-					Mode:         ModeBinary,
-					Name:         "a",
-					Target:       s.URL[0:strings.LastIndex(s.URL, ":")] + "/{{.ProjectName}}/{{.Version}}/",
-					Username:     "u3",
-					Checksum:     true,
-					Signature:    true,
-					TrustedCerts: cert(s),
+					Mode:              ModeBinary,
+					Name:              "a",
+					TargetURLResolver: url(s.URL[0:strings.LastIndex(s.URL, ":")] + "/{{.ProjectName}}/{{.Version}}/"),
+					Username:          "u3",
+					Checksum:          true,
+					Signature:         true,
+					TrustedCerts:      cert(s),
 				}
 			},
 			checks(),
@@ -429,13 +434,13 @@ func TestUpload(t *testing.T) {
 		{"broken-cert", false, true, false, true,
 			func(s *httptest.Server) (*context.Context, Config) {
 				return ctx, Config{
-					Mode:         ModeBinary,
-					Name:         "a",
-					Target:       s.URL + "/{{.ProjectName}}/{{.Version}}/",
-					Username:     "u3",
-					Checksum:     false,
-					Signature:    false,
-					TrustedCerts: "bad certs!",
+					Mode:              ModeBinary,
+					Name:              "a",
+					TargetURLResolver: url(s.URL + "/{{.ProjectName}}/{{.Version}}/"),
+					Username:          "u3",
+					Checksum:          false,
+					Signature:         false,
+					TrustedCerts:      "bad certs!",
 				}
 			},
 			checks(),
@@ -451,12 +456,12 @@ func TestUpload(t *testing.T) {
 		{"checksumheader", true, true, false, false,
 			func(s *httptest.Server) (*context.Context, Config) {
 				return ctx, Config{
-					Mode:           ModeBinary,
-					Name:           "a",
-					Target:         s.URL + "/{{.ProjectName}}/{{.Version}}/",
-					Username:       "u2",
-					ChecksumHeader: "-x-sha256",
-					TrustedCerts:   cert(s),
+					Mode:              ModeBinary,
+					Name:              "a",
+					TargetURLResolver: url(s.URL + "/{{.ProjectName}}/{{.Version}}/"),
+					Username:          "u2",
+					ChecksumHeader:    "-x-sha256",
+					TrustedCerts:      cert(s),
 				}
 			},
 			checks(check{"/blah/2.1.0/a.ubi", "u2", "x", content, map[string]string{"-x-sha256": "5e2bf57d3f40c4b6df69daf1936cb766f832374b4fc0259a7cbff06e2f70f269"}}),

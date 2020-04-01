@@ -66,29 +66,24 @@ func assetOpenDefault(kind string, a *artifact.Artifact) (*asset, error) {
 	}, nil
 }
 
-// #todo
-type TargetUrlBuild func(*h.Response) (string, error)
+// #todo doku + error wird nicht gebraucht
+type TargetURLResolver func(ctx *context.Context, config *Config, artifact *artifact.Artifact) string
 
 type Config struct {
-	Name               string
-	IDs                []string
-	Target             string
-	Username           string
-	Mode               string
-	Method             string
-	ChecksumHeader     string
-	TrustedCerts       string
-	Checksum           bool
-	Signature          bool
-	CustomArtifactName bool
+	Name              string
+	IDs               []string
+	Username          string
+	Mode              string
+	Method            string
+	ChecksumHeader    string
+	TrustedCerts      string
+	Checksum          bool
+	Signature         bool
+	TargetURLResolver TargetURLResolver
 }
 
 // CheckConfig validates an upload configuration returning a descriptive error when appropriate
 func CheckConfig(ctx *context.Context, config *Config, kind string) error {
-	if config.Target == "" {
-		return misconfigured(kind, config, "missing target")
-	}
-
 	if config.Name == "" {
 		return misconfigured(kind, config, "missing name")
 	}
@@ -226,12 +221,15 @@ func uploadAsset(ctx *context.Context, config *Config, artifact *artifact.Artifa
 	}
 
 	// Generate the target url
-	targetURL, err := resolveTargetTemplate(ctx, config, artifact)
+	targetURL := config.TargetURLResolver(ctx, config, artifact)
+	targetURL, err = resolveTargetTemplate(ctx, config, artifact, targetURL)
 	if err != nil {
 		msg := fmt.Sprintf("%s: error while building the target url", kind)
 		log.WithField("instance", config.Name).WithError(err).Error(msg)
 		return errors.Wrap(err, msg)
 	}
+
+	log.Debugf("generated target url: %s", targetURL)
 
 	// Handle the artifact
 	asset, err := assetOpen(kind, artifact)
@@ -239,16 +237,6 @@ func uploadAsset(ctx *context.Context, config *Config, artifact *artifact.Artifa
 		return err
 	}
 	defer asset.ReadCloser.Close() // nolint: errcheck
-
-	// target url need to contain the artifact name unless the custom
-	// artifact name is used
-	if !config.CustomArtifactName {
-		if !strings.HasSuffix(targetURL, "/") {
-			targetURL += "/"
-		}
-		targetURL += artifact.Name
-	}
-	log.Debugf("generated target url: %s", targetURL)
 
 	var headers = map[string]string{}
 	if config.ChecksumHeader != "" {
@@ -362,7 +350,7 @@ func executeHTTPRequest(ctx *context.Context, config *Config, req *h.Request, ch
 
 // resolveTargetTemplate returns the resolved target template with replaced variables
 // Those variables can be replaced by the given context, goos, goarch, goarm and more
-func resolveTargetTemplate(ctx *context.Context, config *Config, artifact *artifact.Artifact) (string, error) {
+func resolveTargetTemplate(ctx *context.Context, config *Config, artifact *artifact.Artifact, url string) (string, error) {
 	var replacements = map[string]string{}
 	if config.Mode == ModeBinary {
 		// TODO: multiple archives here
@@ -370,5 +358,5 @@ func resolveTargetTemplate(ctx *context.Context, config *Config, artifact *artif
 	}
 	return tmpl.New(ctx).
 		WithArtifact(artifact, replacements).
-		Apply(config.Target)
+		Apply(url)
 }

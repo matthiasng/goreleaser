@@ -2,11 +2,15 @@
 package upload
 
 import (
+	"fmt"
 	h "net/http"
+	"strings"
 
+	"github.com/goreleaser/goreleaser/internal/artifact"
 	"github.com/goreleaser/goreleaser/internal/deprecate"
 	"github.com/goreleaser/goreleaser/internal/http"
 	"github.com/goreleaser/goreleaser/internal/pipe"
+	"github.com/goreleaser/goreleaser/pkg/config"
 	"github.com/goreleaser/goreleaser/pkg/context"
 	"github.com/pkg/errors"
 )
@@ -39,6 +43,27 @@ func (Pipe) Default(ctx *context.Context) error {
 	return nil
 }
 
+func targetURLResolver(upload *config.Upload) http.TargetURLResolver {
+	return func(ctx *context.Context, config *http.Config, artifact *artifact.Artifact) string {
+		targetURL := upload.Target
+
+		// target url need to contain the artifact name unless the custom artifact name is used
+		if !upload.CustomArtifactName {
+			if !strings.HasSuffix(targetURL, "/") {
+				targetURL += "/"
+			}
+			targetURL += artifact.Name
+		}
+
+		return targetURL
+	}
+}
+
+// #todo Gibt es jetzt 3 mal, in Artifactory, Upload und Http
+func misconfigured(upload *config.Upload, reason string) error {
+	return pipe.Skip(fmt.Sprintf("upload section '%s' is not configured properly (%s)", upload.Name, reason))
+}
+
 // Publish uploads
 func (Pipe) Publish(ctx *context.Context) error {
 	if len(ctx.Config.Uploads) == 0 {
@@ -47,18 +72,23 @@ func (Pipe) Publish(ctx *context.Context) error {
 
 	configs := []http.Config{}
 	for _, upload := range ctx.Config.Uploads {
+		upload := upload
+
+		if upload.Target == "" {
+			return misconfigured(&upload, "missing target")
+		}
+
 		configs = append(configs, http.Config{
-			Name:               upload.Name,
-			IDs:                upload.IDs,
-			Target:             upload.Target,
-			Username:           upload.Username,
-			Mode:               upload.Mode,
-			Method:             upload.Method,
-			ChecksumHeader:     upload.ChecksumHeader,
-			TrustedCerts:       upload.TrustedCerts,
-			Checksum:           upload.Checksum,
-			Signature:          upload.Signature,
-			CustomArtifactName: upload.CustomArtifactName,
+			Name:              upload.Name,
+			IDs:               upload.IDs,
+			Username:          upload.Username,
+			Mode:              upload.Mode,
+			Method:            upload.Method,
+			ChecksumHeader:    upload.ChecksumHeader,
+			TrustedCerts:      upload.TrustedCerts,
+			Checksum:          upload.Checksum,
+			Signature:         upload.Signature,
+			TargetURLResolver: targetURLResolver(&upload),
 		})
 	}
 

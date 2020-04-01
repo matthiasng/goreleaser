@@ -6,9 +6,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	h "net/http"
+	"strings"
 
+	"github.com/goreleaser/goreleaser/internal/artifact"
 	"github.com/goreleaser/goreleaser/internal/http"
 	"github.com/goreleaser/goreleaser/internal/pipe"
+	"github.com/goreleaser/goreleaser/pkg/config"
 	"github.com/goreleaser/goreleaser/pkg/context"
 )
 
@@ -54,6 +57,23 @@ func (Pipe) Default(ctx *context.Context) error {
 	return nil
 }
 
+// #todo Gibt es jetzt 3 mal, in Artifactory, Upload und Http
+func misconfigured(instance *config.Artifactory, reason string) error {
+	return pipe.Skip(fmt.Sprintf("artifactory section '%s' is not configured properly (%s)", instance.Name, reason))
+}
+
+// #todo der target url resolver sollte optional sein, der default ist das hier!
+func targetURLResolver(instance *config.Artifactory) http.TargetURLResolver {
+	return func(ctx *context.Context, config *http.Config, artifact *artifact.Artifact) string {
+		targetURL := instance.Target
+		if !strings.HasSuffix(targetURL, "/") {
+			targetURL += "/"
+		}
+		targetURL += artifact.Name
+		return targetURL
+	}
+}
+
 // Publish artifacts to artifactory
 //
 // Docs: https://www.jfrog.com/confluence/display/RTF/Artifactory+REST+API#ArtifactoryRESTAPI-Example-DeployinganArtifact
@@ -64,18 +84,23 @@ func (Pipe) Publish(ctx *context.Context) error {
 
 	configs := []http.Config{}
 	for _, instance := range ctx.Config.Artifactories {
+		instance := instance
+
+		if instance.Target == "" {
+			return misconfigured(&instance, "missing target")
+		}
+
 		configs = append(configs, http.Config{
-			Name:               instance.Name,
-			IDs:                instance.IDs,
-			Target:             instance.Target,
-			Username:           instance.Username,
-			Mode:               instance.Mode,
-			Method:             h.MethodPut,
-			TrustedCerts:       instance.TrustedCerts,
-			Checksum:           instance.Checksum,
-			Signature:          instance.Signature,
-			CustomArtifactName: false,
-			ChecksumHeader:     "", // #todo
+			Name:              instance.Name,
+			IDs:               instance.IDs,
+			Username:          instance.Username,
+			Mode:              instance.Mode,
+			Method:            h.MethodPut,
+			TrustedCerts:      instance.TrustedCerts,
+			Checksum:          instance.Checksum,
+			Signature:         instance.Signature,
+			ChecksumHeader:    "", // #todo
+			TargetURLResolver: targetURLResolver(&instance),
 		})
 	}
 
