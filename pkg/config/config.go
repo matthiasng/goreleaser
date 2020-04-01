@@ -350,29 +350,41 @@ type Upload struct {
 	CustomArtifactName bool     `yaml:"custom_artifact_name,omitempty"`
 }
 
+// Artifactory configuration
+type Artifactory struct {
+	Name         string   `yaml:",omitempty"`
+	IDs          []string `yaml:"ids,omitempty"`
+	Target       string   `yaml:",omitempty"`
+	Username     string   `yaml:",omitempty"`
+	Mode         string   `yaml:",omitempty"`
+	TrustedCerts string   `yaml:"trusted_certificates,omitempty"`
+	Checksum     bool     `yaml:",omitempty"`
+	Signature    bool     `yaml:",omitempty"`
+}
+
 // Project includes all project configuration
 type Project struct {
-	ProjectName   string      `yaml:"project_name,omitempty"`
-	Env           []string    `yaml:",omitempty"`
-	Release       Release     `yaml:",omitempty"`
-	Brews         []Homebrew  `yaml:",omitempty"`
-	Scoop         Scoop       `yaml:",omitempty"`
-	Builds        []Build     `yaml:",omitempty"`
-	Archives      []Archive   `yaml:",omitempty"`
-	NFPMs         []NFPM      `yaml:"nfpms,omitempty"`
-	Snapcrafts    []Snapcraft `yaml:",omitempty"`
-	Snapshot      Snapshot    `yaml:",omitempty"`
-	Checksum      Checksum    `yaml:",omitempty"`
-	Dockers       []Docker    `yaml:",omitempty"`
-	Artifactories []Upload    `yaml:",omitempty"`
-	Uploads       []Upload    `yaml:",omitempty"`
-	Puts          []Upload    `yaml:",omitempty"` // TODO: remove this
-	Blobs         []Blob      `yaml:"blobs,omitempty"`
-	Changelog     Changelog   `yaml:",omitempty"`
-	Dist          string      `yaml:",omitempty"`
-	Signs         []Sign      `yaml:",omitempty"`
-	EnvFiles      EnvFiles    `yaml:"env_files,omitempty"`
-	Before        Before      `yaml:",omitempty"`
+	ProjectName   string        `yaml:"project_name,omitempty"`
+	Env           []string      `yaml:",omitempty"`
+	Release       Release       `yaml:",omitempty"`
+	Brews         []Homebrew    `yaml:",omitempty"`
+	Scoop         Scoop         `yaml:",omitempty"`
+	Builds        []Build       `yaml:",omitempty"`
+	Archives      []Archive     `yaml:",omitempty"`
+	NFPMs         []NFPM        `yaml:"nfpms,omitempty"`
+	Snapcrafts    []Snapcraft   `yaml:",omitempty"`
+	Snapshot      Snapshot      `yaml:",omitempty"`
+	Checksum      Checksum      `yaml:",omitempty"`
+	Dockers       []Docker      `yaml:",omitempty"`
+	Artifactories []Artifactory `yaml:",omitempty"`
+	Uploads       []Upload      `yaml:",omitempty"`
+	Puts          []Upload      `yaml:",omitempty"` // TODO: remove this
+	Blobs         []Blob        `yaml:"blobs,omitempty"`
+	Changelog     Changelog     `yaml:",omitempty"`
+	Dist          string        `yaml:",omitempty"`
+	Signs         []Sign        `yaml:",omitempty"`
+	EnvFiles      EnvFiles      `yaml:"env_files,omitempty"`
+	Before        Before        `yaml:",omitempty"`
 
 	// this is a hack ¯\_(ツ)_/¯
 	SingleBuild Build `yaml:"build,omitempty"`

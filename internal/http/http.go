@@ -18,7 +18,6 @@ import (
 	"github.com/goreleaser/goreleaser/internal/pipe"
 	"github.com/goreleaser/goreleaser/internal/semerrgroup"
 	"github.com/goreleaser/goreleaser/internal/tmpl"
-	"github.com/goreleaser/goreleaser/pkg/config"
 	"github.com/goreleaser/goreleaser/pkg/context"
 )
 
@@ -67,75 +66,75 @@ func assetOpenDefault(kind string, a *artifact.Artifact) (*asset, error) {
 	}, nil
 }
 
-// Defaults sets default configuration options on upload structs
-func Defaults(uploads []config.Upload) error {
-	for i := range uploads {
-		defaults(&uploads[i])
-	}
-	return nil
-}
+// #todo
+type TargetUrlBuild func(*h.Response) (string, error)
 
-func defaults(upload *config.Upload) {
-	if upload.Mode == "" {
-		upload.Mode = ModeArchive
-	}
-	if upload.Method == "" {
-		upload.Method = h.MethodPut
-	}
+type Config struct {
+	Name               string
+	IDs                []string
+	Target             string
+	Username           string
+	Mode               string
+	Method             string
+	ChecksumHeader     string
+	TrustedCerts       string
+	Checksum           bool
+	Signature          bool
+	CustomArtifactName bool
 }
 
 // CheckConfig validates an upload configuration returning a descriptive error when appropriate
-func CheckConfig(ctx *context.Context, upload *config.Upload, kind string) error {
-	if upload.Target == "" {
-		return misconfigured(kind, upload, "missing target")
+func CheckConfig(ctx *context.Context, config *Config, kind string) error {
+	if config.Target == "" {
+		return misconfigured(kind, config, "missing target")
 	}
 
-	if upload.Name == "" {
-		return misconfigured(kind, upload, "missing name")
+	if config.Name == "" {
+		return misconfigured(kind, config, "missing name")
 	}
 
-	if upload.Mode != ModeArchive && upload.Mode != ModeBinary {
-		return misconfigured(kind, upload, "mode must be 'binary' or 'archive'")
+	if config.Mode != ModeArchive && config.Mode != ModeBinary {
+		return misconfigured(kind, config, "mode must be 'binary' or 'archive'")
 	}
 
-	if _, err := getUsername(ctx, upload, kind); err != nil {
+	if _, err := getUsername(ctx, config, kind); err != nil {
 		return err
 	}
 
-	if _, err := getPassword(ctx, upload, kind); err != nil {
+	if _, err := getPassword(ctx, config, kind); err != nil {
 		return err
 	}
 
-	if upload.TrustedCerts != "" && !x509.NewCertPool().AppendCertsFromPEM([]byte(upload.TrustedCerts)) {
-		return misconfigured(kind, upload, "no certificate could be added from the specified trusted_certificates configuration")
+	if config.TrustedCerts != "" && !x509.NewCertPool().AppendCertsFromPEM([]byte(config.TrustedCerts)) {
+		return misconfigured(kind, config, "no certificate could be added from the specified trusted_certificates configuration")
 	}
 
 	return nil
 }
 
-func getUsername(ctx *context.Context, upload *config.Upload, kind string) (string, error) {
-	if upload.Username != "" {
-		return upload.Username, nil
+func getUsername(ctx *context.Context, config *Config, kind string) (string, error) {
+	if config.Username != "" {
+		return config.Username, nil
 	}
-	var key = fmt.Sprintf("%s_%s_USERNAME", strings.ToUpper(kind), strings.ToUpper(upload.Name))
+	var key = fmt.Sprintf("%s_%s_USERNAME", strings.ToUpper(kind), strings.ToUpper(config.Name))
 	user, ok := ctx.Env[key]
 	if !ok {
-		return "", misconfigured(kind, upload, fmt.Sprintf("missing username or %s environment variable", key))
+		return "", misconfigured(kind, config, fmt.Sprintf("missing username or %s environment variable", key))
 	}
 	return user, nil
 }
 
-func getPassword(ctx *context.Context, upload *config.Upload, kind string) (string, error) {
-	var key = fmt.Sprintf("%s_%s_SECRET", strings.ToUpper(kind), strings.ToUpper(upload.Name))
+func getPassword(ctx *context.Context, config *Config, kind string) (string, error) {
+	var key = fmt.Sprintf("%s_%s_SECRET", strings.ToUpper(kind), strings.ToUpper(config.Name))
 	pwd, ok := ctx.Env[key]
 	if !ok {
-		return "", misconfigured(kind, upload, fmt.Sprintf("missing %s environment variable", key))
+		return "", misconfigured(kind, config, fmt.Sprintf("missing %s environment variable", key))
 	}
 	return pwd, nil
 }
 
-func misconfigured(kind string, upload *config.Upload, reason string) error {
-	return pipe.Skip(fmt.Sprintf("%s section '%s' is not configured properly (%s)", kind, upload.Name, reason))
+func misconfigured(kind string, config *Config, reason string) error {
+	return pipe.Skip(fmt.Sprintf("%s section '%s' is not configured properly (%s)", kind, config.Name, reason))
 }
 
 // ResponseChecker is a function capable of validating an http server response.
@@ -143,46 +142,20 @@ func misconfigured(kind string, upload *config.Upload, reason string) error {
 type ResponseChecker func(*h.Response) error
 
 // Upload does the actual uploading work
-func Upload(ctx *context.Context, uploads []config.Upload, kind string, check ResponseChecker) error {
+func Upload(ctx *context.Context, configs []Config, kind string, check ResponseChecker) error {
 	if ctx.SkipPublish {
 		return pipe.ErrSkipPublishEnabled
 	}
 
 	// Handle every configured upload
-	for _, upload := range uploads {
-		upload := upload
-		filters := []artifact.Filter{}
-		if upload.Checksum {
-			filters = append(filters, artifact.ByType(artifact.Checksum))
-		}
-		if upload.Signature {
-			filters = append(filters, artifact.ByType(artifact.Signature))
-		}
-		// We support two different modes
-		//	- "archive": Upload all artifacts
-		//	- "binary": Upload only the raw binaries
-		switch v := strings.ToLower(upload.Mode); v {
-		case ModeArchive:
-			filters = append(filters,
-				artifact.ByType(artifact.UploadableArchive),
-				artifact.ByType(artifact.LinuxPackage),
-			)
-		case ModeBinary:
-			filters = append(filters, artifact.ByType(artifact.UploadableBinary))
-		default:
-			err := fmt.Errorf("%s: mode \"%s\" not supported", kind, v)
-			log.WithFields(log.Fields{
-				kind:   upload.Name,
-				"mode": v,
-			}).Error(err.Error())
+	for _, config := range configs {
+		config := config
+		filter, err := filter(config, kind)
+		if err != nil {
 			return err
 		}
 
-		var filter = artifact.Or(filters...)
-		if len(upload.IDs) > 0 {
-			filter = artifact.And(filter, artifact.ByIDs(upload.IDs...))
-		}
-		if err := uploadWithFilter(ctx, &upload, filter, kind, check); err != nil {
+		if err := uploadWithFilter(ctx, &config, filter, kind, check); err != nil {
 			return err
 		}
 	}
@@ -190,36 +163,73 @@ func Upload(ctx *context.Context, uploads []config.Upload, kind string, check Re
 	return nil
 }
 
-func uploadWithFilter(ctx *context.Context, upload *config.Upload, filter artifact.Filter, kind string, check ResponseChecker) error {
+// filter create the filter for the upload
+func filter(config Config, kind string) (artifact.Filter, error) {
+	filters := []artifact.Filter{}
+	if config.Checksum {
+		filters = append(filters, artifact.ByType(artifact.Checksum))
+	}
+	if config.Signature {
+		filters = append(filters, artifact.ByType(artifact.Signature))
+	}
+	// We support two different modes
+	//	- "archive": Upload all artifacts
+	//	- "binary": Upload only the raw binaries
+	switch v := strings.ToLower(config.Mode); v {
+	case ModeArchive:
+		filters = append(filters,
+			artifact.ByType(artifact.UploadableArchive),
+			artifact.ByType(artifact.LinuxPackage),
+		)
+	case ModeBinary:
+		filters = append(filters, artifact.ByType(artifact.UploadableBinary))
+	default:
+		err := fmt.Errorf("%s: mode \"%s\" not supported", kind, v)
+		log.WithFields(log.Fields{
+			kind:   config.Name,
+			"mode": v,
+		}).Error(err.Error())
+		return nil, err
+	}
+
+	var filter = artifact.Or(filters...)
+	if len(config.IDs) > 0 {
+		filter = artifact.And(filter, artifact.ByIDs(config.IDs...))
+	}
+
+	return filter, nil
+}
+
+func uploadWithFilter(ctx *context.Context, config *Config, filter artifact.Filter, kind string, check ResponseChecker) error {
 	var artifacts = ctx.Artifacts.Filter(filter).List()
 	log.Debugf("will upload %d artifacts", len(artifacts))
 	var g = semerrgroup.New(ctx.Parallelism)
 	for _, artifact := range artifacts {
 		artifact := artifact
 		g.Go(func() error {
-			return uploadAsset(ctx, upload, artifact, kind, check)
+			return uploadAsset(ctx, config, artifact, kind, check)
 		})
 	}
 	return g.Wait()
 }
 
 // uploadAsset uploads file to target and logs all actions
-func uploadAsset(ctx *context.Context, upload *config.Upload, artifact *artifact.Artifact, kind string, check ResponseChecker) error {
-	username, err := getUsername(ctx, upload, kind)
+func uploadAsset(ctx *context.Context, config *Config, artifact *artifact.Artifact, kind string, check ResponseChecker) error {
+	username, err := getUsername(ctx, config, kind)
 	if err != nil {
 		return err
 	}
 
-	secret, err := getPassword(ctx, upload, kind)
+	secret, err := getPassword(ctx, config, kind)
 	if err != nil {
 		return err
 	}
 
 	// Generate the target url
-	targetURL, err := resolveTargetTemplate(ctx, upload, artifact)
+	targetURL, err := resolveTargetTemplate(ctx, config, artifact)
 	if err != nil {
 		msg := fmt.Sprintf("%s: error while building the target url", kind)
-		log.WithField("instance", upload.Name).WithError(err).Error(msg)
+		log.WithField("instance", config.Name).WithError(err).Error(msg)
 		return errors.Wrap(err, msg)
 	}
 
@@ -232,7 +242,7 @@ func uploadAsset(ctx *context.Context, upload *config.Upload, artifact *artifact
 
 	// target url need to contain the artifact name unless the custom
 	// artifact name is used
-	if !upload.CustomArtifactName {
+	if !config.CustomArtifactName {
 		if !strings.HasSuffix(targetURL, "/") {
 			targetURL += "/"
 		}
@@ -241,19 +251,19 @@ func uploadAsset(ctx *context.Context, upload *config.Upload, artifact *artifact
 	log.Debugf("generated target url: %s", targetURL)
 
 	var headers = map[string]string{}
-	if upload.ChecksumHeader != "" {
+	if config.ChecksumHeader != "" {
 		sum, err := artifact.Checksum("sha256")
 		if err != nil {
 			return err
 		}
-		headers[upload.ChecksumHeader] = sum
+		headers[config.ChecksumHeader] = sum
 	}
 
-	res, err := uploadAssetToServer(ctx, upload, targetURL, username, secret, headers, asset, check)
+	res, err := uploadAssetToServer(ctx, config, targetURL, username, secret, headers, asset, check)
 	if err != nil {
 		msg := fmt.Sprintf("%s: upload failed", kind)
 		log.WithError(err).WithFields(log.Fields{
-			"instance": upload.Name,
+			"instance": config.Name,
 			"username": username,
 		}).Error(msg)
 		return errors.Wrap(err, msg)
@@ -263,21 +273,21 @@ func uploadAsset(ctx *context.Context, upload *config.Upload, artifact *artifact
 	}
 
 	log.WithFields(log.Fields{
-		"instance": upload.Name,
-		"mode":     upload.Mode,
+		"instance": config.Name,
+		"mode":     config.Mode,
 	}).Info("uploaded successful")
 
 	return nil
 }
 
 // uploadAssetToServer uploads the asset file to target
-func uploadAssetToServer(ctx *context.Context, upload *config.Upload, target, username, secret string, headers map[string]string, a *asset, check ResponseChecker) (*h.Response, error) {
-	req, err := newUploadRequest(upload.Method, target, username, secret, headers, a)
+func uploadAssetToServer(ctx *context.Context, config *Config, target, username, secret string, headers map[string]string, a *asset, check ResponseChecker) (*h.Response, error) {
+	req, err := newUploadRequest(config.Method, target, username, secret, headers, a)
 	if err != nil {
 		return nil, err
 	}
 
-	return executeHTTPRequest(ctx, upload, req, check)
+	return executeHTTPRequest(ctx, config, req, check)
 }
 
 // newUploadRequest creates a new h.Request for uploading
@@ -296,8 +306,8 @@ func newUploadRequest(method, target, username, secret string, headers map[strin
 	return req, err
 }
 
-func getHTTPClient(upload *config.Upload) (*h.Client, error) {
-	if upload.TrustedCerts == "" {
+func getHTTPClient(config *Config) (*h.Client, error) {
+	if config.TrustedCerts == "" {
 		return h.DefaultClient, nil
 	}
 	pool, err := x509.SystemCertPool()
@@ -309,7 +319,7 @@ func getHTTPClient(upload *config.Upload) (*h.Client, error) {
 			return nil, err
 		}
 	}
-	pool.AppendCertsFromPEM([]byte(upload.TrustedCerts)) // already validated certs checked by CheckConfig
+	pool.AppendCertsFromPEM([]byte(config.TrustedCerts)) // already validated certs checked by CheckConfig
 	return &h.Client{
 		Transport: &h.Transport{
 			TLSClientConfig: &tls.Config{
@@ -320,8 +330,8 @@ func getHTTPClient(upload *config.Upload) (*h.Client, error) {
 }
 
 // executeHTTPRequest processes the http call with respect of context ctx
-func executeHTTPRequest(ctx *context.Context, upload *config.Upload, req *h.Request, check ResponseChecker) (*h.Response, error) {
-	client, err := getHTTPClient(upload)
+func executeHTTPRequest(ctx *context.Context, config *Config, req *h.Request, check ResponseChecker) (*h.Response, error) {
+	client, err := getHTTPClient(config)
 	if err != nil {
 		return nil, err
 	}
@@ -352,13 +362,13 @@ func executeHTTPRequest(ctx *context.Context, upload *config.Upload, req *h.Requ
 
 // resolveTargetTemplate returns the resolved target template with replaced variables
 // Those variables can be replaced by the given context, goos, goarch, goarm and more
-func resolveTargetTemplate(ctx *context.Context, upload *config.Upload, artifact *artifact.Artifact) (string, error) {
+func resolveTargetTemplate(ctx *context.Context, config *Config, artifact *artifact.Artifact) (string, error) {
 	var replacements = map[string]string{}
-	if upload.Mode == ModeBinary {
+	if config.Mode == ModeBinary {
 		// TODO: multiple archives here
 		replacements = ctx.Config.Archives[0].Replacements
 	}
 	return tmpl.New(ctx).
 		WithArtifact(artifact, replacements).
-		Apply(upload.Target)
+		Apply(config.Target)
 }

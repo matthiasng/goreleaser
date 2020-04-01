@@ -46,10 +46,12 @@ func (Pipe) String() string {
 // Default sets the pipe defaults
 func (Pipe) Default(ctx *context.Context) error {
 	for i := range ctx.Config.Artifactories {
-		ctx.Config.Artifactories[i].ChecksumHeader = "X-Checksum-SHA256"
-		ctx.Config.Artifactories[i].Method = h.MethodPut
+		if ctx.Config.Artifactories[i].Mode == "" {
+			ctx.Config.Artifactories[i].Mode = http.ModeArchive
+		}
 	}
-	return http.Defaults(ctx.Config.Artifactories)
+
+	return nil
 }
 
 // Publish artifacts to artifactory
@@ -60,16 +62,33 @@ func (Pipe) Publish(ctx *context.Context) error {
 		return pipe.Skip("artifactory section is not configured")
 	}
 
+	configs := []http.Config{}
+	for _, instance := range ctx.Config.Artifactories {
+		configs = append(configs, http.Config{
+			Name:               instance.Name,
+			IDs:                instance.IDs,
+			Target:             instance.Target,
+			Username:           instance.Username,
+			Mode:               instance.Mode,
+			Method:             h.MethodPut,
+			TrustedCerts:       instance.TrustedCerts,
+			Checksum:           instance.Checksum,
+			Signature:          instance.Signature,
+			CustomArtifactName: false,
+			ChecksumHeader:     "", // #todo
+		})
+	}
+
 	// Check requirements for every instance we have configured.
 	// If not fulfilled, we can skip this pipeline
-	for _, instance := range ctx.Config.Artifactories {
-		instance := instance
-		if skip := http.CheckConfig(ctx, &instance, "artifactory"); skip != nil {
+	for _, config := range configs {
+		config := config
+		if skip := http.CheckConfig(ctx, &config, "artifactory"); skip != nil {
 			return pipe.Skip(skip.Error())
 		}
 	}
 
-	return http.Upload(ctx, ctx.Config.Artifactories, "artifactory", func(res *h.Response) error {
+	return http.Upload(ctx, configs, "artifactory", func(res *h.Response) error {
 		if err := checkResponse(res); err != nil {
 			return err
 		}
