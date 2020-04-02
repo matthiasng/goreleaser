@@ -66,9 +66,9 @@ func assetOpenDefault(kind string, a *artifact.Artifact) (*asset, error) {
 	}, nil
 }
 
-// #todo doku + error wird nicht gebraucht
+// #todo doku
 type TargetURLResolver func(ctx *context.Context, config *Config, artifact *artifact.Artifact) string
-type HeaderGenerator func(artifact *artifact.Artifact) (map[string]string, error)
+type HeaderFunc func(artifact *artifact.Artifact) (map[string]string, error)
 
 type Config struct {
 	Name              string
@@ -80,7 +80,7 @@ type Config struct {
 	Checksum          bool
 	Signature         bool
 	TargetURLResolver TargetURLResolver
-	Header            HeaderGenerator
+	Header            HeaderFunc
 }
 
 // CheckConfig validates an upload configuration returning a descriptive error when appropriate

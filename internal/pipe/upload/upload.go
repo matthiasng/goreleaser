@@ -59,7 +59,7 @@ func targetURLResolver(upload *config.Upload) http.TargetURLResolver {
 	}
 }
 
-func header(upload *config.Upload) http.HeaderGenerator {
+func header(upload *config.Upload) http.HeaderFunc {
 	return func(artifact *artifact.Artifact) (map[string]string, error) {
 		var headers = map[string]string{}
 		if upload.ChecksumHeader != "" {

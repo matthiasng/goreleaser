@@ -18,8 +18,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// #todo Test für ChecksumHeader. Hat es vorher nicht gegeben
-
 var (
 	// mux is the HTTP request multiplexer used with the test server.
 	mux *http.ServeMux
@@ -356,7 +354,194 @@ func TestRunPipe_ModeArchive_CustomArtifactName(t *testing.T) {
 	assert.True(t, ok, "deb file was not uploaded")
 }
 
-func TestRunPipe_ArtifactoryDown(t *testing.T) {
+func TestRunPipe_ModeBinary_ChecksumHeader(t *testing.T) {
+	setup()
+	defer teardown()
+
+	folder, err := ioutil.TempDir("", "binarytest")
+	assert.NoError(t, err)
+	var dist = filepath.Join(folder, "dist")
+	assert.NoError(t, os.Mkdir(dist, 0755))
+	assert.NoError(t, os.Mkdir(filepath.Join(dist, "mybin"), 0755))
+	var binPath = filepath.Join(dist, "mybin", "mybin")
+	d1 := []byte("hello\ngo\n")
+	err = ioutil.WriteFile(binPath, d1, 0666)
+	assert.NoError(t, err)
+
+	// Dummy http server
+	mux.HandleFunc("/example-repo-local/mybin/darwin/amd64/mybin", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPut)
+		testHeader(t, r, "Content-Length", "9")
+		testHeader(t, r, "Authorization", "Basic ZGVwbG95dXNlcjpkZXBsb3l1c2VyLXNlY3JldA==")
+		testHeader(t, r, "-x-checksum", "43d250d92b5dbb47f75208de8e9a9a321d23e85eed0dc3d5dfa83bc3cc5aa68c")
+
+		w.Header().Set("Location", "/production-repo-remote/mybin/linux/amd64/mybin")
+		w.WriteHeader(http.StatusCreated)
+	})
+	mux.HandleFunc("/example-repo-local/mybin/linux/amd64/mybin", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPut)
+		testHeader(t, r, "Content-Length", "9")
+		testHeader(t, r, "Authorization", "Basic ZGVwbG95dXNlcjpkZXBsb3l1c2VyLXNlY3JldA==")
+		testHeader(t, r, "-x-checksum", "43d250d92b5dbb47f75208de8e9a9a321d23e85eed0dc3d5dfa83bc3cc5aa68c")
+
+		w.Header().Set("Location", "/production-repo-remote/mybin/linux/amd64/mybin")
+		w.WriteHeader(http.StatusCreated)
+	})
+	mux.HandleFunc("/production-repo-remote/mybin/darwin/amd64/mybin", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPut)
+		testHeader(t, r, "Content-Length", "9")
+		testHeader(t, r, "Authorization", "Basic cHJvZHVjdGlvbnVzZXI6cHJvZHVjdGlvbnVzZXItYXBpa2V5")
+		testHeader(t, r, "-x-checksum", "")
+
+		w.Header().Set("Location", "/production-repo-remote/mybin/linux/amd64/mybin")
+		w.WriteHeader(http.StatusCreated)
+	})
+	mux.HandleFunc("/production-repo-remote/mybin/linux/amd64/mybin", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPut)
+		testHeader(t, r, "Content-Length", "9")
+		testHeader(t, r, "Authorization", "Basic cHJvZHVjdGlvbnVzZXI6cHJvZHVjdGlvbnVzZXItYXBpa2V5")
+		testHeader(t, r, "-x-checksum", "")
+
+		w.Header().Set("Location", "/production-repo-remote/mybin/linux/amd64/mybin")
+		w.WriteHeader(http.StatusCreated)
+	})
+
+	var ctx = context.New(config.Project{
+		ProjectName: "mybin",
+		Dist:        dist,
+		Uploads: []config.Upload{
+			{
+				Method:         h.MethodPut,
+				Name:           "production-us",
+				Mode:           "binary",
+				Target:         fmt.Sprintf("%s/example-repo-local/{{ .ProjectName }}/{{ .Os }}/{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}", server.URL),
+				Username:       "deployuser",
+				ChecksumHeader: "-x-checksum",
+			},
+			{
+				Method:   h.MethodPut,
+				Name:     "production-eu",
+				Mode:     "binary",
+				Target:   fmt.Sprintf("%s/production-repo-remote/{{ .ProjectName }}/{{ .Os }}/{{ .Arch }}{{ if .Arm }}v{{ .Arm }}{{ end }}", server.URL),
+				Username: "productionuser",
+			},
+		},
+		Archives: []config.Archive{
+			{},
+		},
+	})
+	ctx.Env = map[string]string{
+		"UPLOAD_PRODUCTION-US_SECRET": "deployuser-secret",
+		"UPLOAD_PRODUCTION-EU_SECRET": "productionuser-apikey",
+	}
+	for _, goos := range []string{"linux", "darwin"} {
+		ctx.Artifacts.Add(&artifact.Artifact{
+			Name:   "mybin",
+			Path:   binPath,
+			Goarch: "amd64",
+			Goos:   goos,
+			Type:   artifact.UploadableBinary,
+		})
+	}
+
+	assert.NoError(t, Pipe{}.Publish(ctx))
+}
+
+func TestRunPipe_ModeArchive_ChecksumHeader(t *testing.T) {
+	setup()
+	defer teardown()
+
+	folder, err := ioutil.TempDir("", "goreleasertest")
+	assert.NoError(t, err)
+	tarfile, err := os.Create(filepath.Join(folder, "bin.tar.gz"))
+	assert.NoError(t, err)
+	debfile, err := os.Create(filepath.Join(folder, "bin.deb"))
+	assert.NoError(t, err)
+
+	var ctx = context.New(config.Project{
+		ProjectName: "goreleaser",
+		Dist:        folder,
+		Uploads: []config.Upload{
+			{
+				Method:         h.MethodPut,
+				Name:           "production-us",
+				Mode:           "archive",
+				Target:         fmt.Sprintf("%s/example-repo-local/{{ .ProjectName }}/{{ .Version }}/", server.URL),
+				Username:       "deployuser",
+				ChecksumHeader: "-x-checksum",
+			},
+			{
+				Method:   h.MethodPut,
+				Name:     "production-eu",
+				Mode:     "archive",
+				Target:   fmt.Sprintf("%s/example-repo-remote/{{ .ProjectName }}/{{ .Version }}/", server.URL),
+				Username: "productionuser",
+			},
+		},
+		Archives: []config.Archive{
+			{},
+		},
+	})
+	ctx.Env = map[string]string{
+		"UPLOAD_PRODUCTION-US_SECRET": "deployuser-secret",
+		"UPLOAD_PRODUCTION-EU_SECRET": "productionuser-apikey",
+	}
+	ctx.Version = "1.0.0"
+	ctx.Artifacts.Add(&artifact.Artifact{
+		Type: artifact.UploadableArchive,
+		Name: "bin.tar.gz",
+		Path: tarfile.Name(),
+	})
+	ctx.Artifacts.Add(&artifact.Artifact{
+		Type: artifact.LinuxPackage,
+		Name: "bin.deb",
+		Path: debfile.Name(),
+	})
+
+	var uploads sync.Map
+
+	// Dummy http server
+	mux.HandleFunc("/example-repo-local/goreleaser/1.0.0/bin.tar.gz", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPut)
+		testHeader(t, r, "Authorization", "Basic ZGVwbG95dXNlcjpkZXBsb3l1c2VyLXNlY3JldA==")
+
+		w.Header().Set("Location", "/example-repo-local/goreleaser/1.0.0/bin.tar.gz")
+		w.WriteHeader(http.StatusCreated)
+		uploads.Store("targz", true)
+	})
+	mux.HandleFunc("/example-repo-local/goreleaser/1.0.0/bin.deb", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPut)
+		testHeader(t, r, "Authorization", "Basic ZGVwbG95dXNlcjpkZXBsb3l1c2VyLXNlY3JldA==")
+
+		w.Header().Set("Location", "/example-repo-local/goreleaser/1.0.0/bin.deb")
+		w.WriteHeader(http.StatusCreated)
+		uploads.Store("deb", true)
+	})
+	mux.HandleFunc("/example-repo-remote/goreleaser/1.0.0/bin.tar.gz", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPut)
+		testHeader(t, r, "Authorization", "Basic cHJvZHVjdGlvbnVzZXI6cHJvZHVjdGlvbnVzZXItYXBpa2V5")
+
+		w.Header().Set("Location", "/example-repo-local/goreleaser/1.0.0/bin.tar.gz")
+		w.WriteHeader(http.StatusCreated)
+		uploads.Store("targz", true)
+	})
+	mux.HandleFunc("/example-repo-remote/goreleaser/1.0.0/bin.deb", func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPut)
+		testHeader(t, r, "Authorization", "Basic cHJvZHVjdGlvbnVzZXI6cHJvZHVjdGlvbnVzZXItYXBpa2V5")
+
+		w.Header().Set("Location", "/example-repo-local/goreleaser/1.0.0/bin.deb")
+		w.WriteHeader(http.StatusCreated)
+		uploads.Store("deb", true)
+	})
+
+	assert.NoError(t, Pipe{}.Publish(ctx))
+	_, ok := uploads.Load("targz")
+	assert.True(t, ok, "tar.gz file was not uploaded")
+	_, ok = uploads.Load("deb")
+	assert.True(t, ok, "deb file was not uploaded")
+}
+
+func TestRunPipe_ServerDown(t *testing.T) {
 	folder, err := ioutil.TempDir("", "goreleasertest")
 	assert.NoError(t, err)
 	tarfile, err := os.Create(filepath.Join(folder, "bin.tar.gz"))

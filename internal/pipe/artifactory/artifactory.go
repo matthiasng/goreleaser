@@ -74,7 +74,7 @@ func targetURLResolver(instance *config.Artifactory) http.TargetURLResolver {
 	}
 }
 
-func header() http.HeaderGenerator {
+func header() http.HeaderFunc {
 	return func(artifact *artifact.Artifact) (map[string]string, error) {
 		var headers = map[string]string{}
 
