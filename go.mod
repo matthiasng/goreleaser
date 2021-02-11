@@ -19,14 +19,14 @@ require (
 	github.com/mattn/go-shellwords v1.0.10
 	github.com/mattn/go-zglob v0.0.3
 	github.com/mitchellh/go-homedir v1.1.0
-	github.com/spf13/cobra v1.0.0
+	github.com/spf13/cobra v1.1.3
 	github.com/stretchr/testify v1.6.1
 	github.com/ulikunitz/xz v0.5.8
 	github.com/xanzy/go-gitlab v0.38.1
 	gocloud.dev v0.20.0
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	golang.org/x/sync v0.0.0-20200625203802-6e8e738ad208
-	gopkg.in/yaml.v2 v2.3.0
+	gopkg.in/yaml.v2 v2.4.0
 )
 
 // https://github.com/mattn/go-shellwords/pull/39
